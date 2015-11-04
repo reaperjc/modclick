@@ -1,0 +1,17 @@
+typeAtom=" AC2 , AC4 , AC5 , AC6 , AC8 , AN1 , AN3 , AN6 , AN7 , AN9 , CC2 , CC4 , CC5 , CC6 , CN1 , CN3 , CN4 , CO2 , GC2 , GC4 , GC5 , GC6 , GC8 , GN1 , GN2 , GN3 , GN7 , GN9 , GO6 , TC2 , TC4 , TC5 , TC6 , TC7 , TN1 , TN3 , TO2 , TO4 "
+n_clique=7
+d_Thr=10
+depth_Thr=1
+buried_Thr=8
+exposed_Thr=30
+SS_Thr=2
+SA_Thr=1
+align_Thr=1
+rmsd_cutoff=6
+rmsd_cutoff_3body=6
+rmsd_cutoff_4body=6
+rmsd_cutoff_5body=6
+rmsd_cutoff_6body=6
+rmsd_cutoff_7body=6
+rmsd_cutoff_8body=6
+rmsd_cutoff_9body=6

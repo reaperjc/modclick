@@ -1,0 +1,16 @@
+This example runs with this command line:
+python modclick.py -t MyAtomtypesTable -l MyList -s -p 4 -o MyOutput
+
+if pp module is not installed, you can avoid -p flag.
+
+The MyList list contains superposition pairs of dinucleotide base pairs. 
+PATH:./carpeta/
+mejor_0.pdb,mejor_1.pdb
+peor_0.pdb,peor_1.pdb
+0.5_0.pdb,0.5_1.pdb
+
+"PATH:" field is obligatory only if all files are in the same folder (in this case "carpeta"). 
+If you want to use absolute paths you need to erase PATH: line
+
+In this examples this six files contains dinucleotide pairs of DNA. However 0.5_1.pdb file doesn't 
+exist so in the result file MyOutput this file will be written in parenthesis ().
