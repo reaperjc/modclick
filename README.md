@@ -48,6 +48,7 @@ OPTIONS:
 		written
 
 EXAMPLE:
+
 	python modclick.py -t MyAtomtypesTable -l MyList -s -p 4 -o MyOutput
 	this line runs click on each superposition pair in MyList with MyParameters 
 	Parameters using MyAtomtypesTable using 4 cores. Results RMSD will be written in MyOutput file
