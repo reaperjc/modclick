@@ -43,3 +43,6 @@ Thumbs.db
 
 # click binary
 click
+
+# pyCharm project info
+.idea/
