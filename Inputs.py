@@ -19,7 +19,9 @@ class Inputs:
         self.numCPUs = None
         self.output = None
         self.original_PDB_lines = []  # with this I can return pdb to its IUPAC atom names convention
-        self.superposition_pairs = []  # list of all superposition pairs
+        self.pdb1 = None # pdb file name given by the user
+        self.pdb2 = None # pdb file name given by the user
+        # self.superposition_pairs = []  # list of all superposition pairs
 
         # INPUTS FLAGS
 
@@ -28,8 +30,25 @@ class Inputs:
         # written
         self.o = False
 
-
+        # -i [file] modclick uses the [file] parameters to run click superpositions
         self.i = False
+
+        # -f [file] modclick uses the [file] table with PDB:chain:resnumber fields that
+		# shows only the residues wich you want to change atom types
+        self.f = False
+
+        # -p [nCPUs] modclick try to run superpositions with parallel python module using
+		# a given number of cores. If no number is specified, or 0 number is given,
+		# modclick uses the maximun machine available cores
+        self.p = False
+
+        # -s	modclick runs click with -s 0 flag. With this flag click doesn't create
+		# transformation pdb files, therefore Merged pdb file is not created
+        self.s = False
+
+        # -m	modclick mantains *.clique file. Merged pdb file is mantains too except if
+		# -s flag is chosen
+        self.m = False
 
         self.nom_atomos = {
             'A': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'N7', 'C8', 'N9', 'N6'],
@@ -44,8 +63,9 @@ class Inputs:
         self.__extractInfoTables()
         self.__checkParametersInp()
 
+
     def __saveAndCheckInputs(self, args):
-        """Whit this function we iterate for all args and saves the inputs"""
+        """With this function we iterate for all args and saves the inputs"""
 
         # creating inputs object
         # inputs = Inputs()
@@ -57,8 +77,11 @@ class Inputs:
         for j, i in enumerate(args):
             # save pdf file if exist
             if i.strip()[-4:] == '.pdb':
-                par.append(i.strip())
-
+                if self.pdb1 == None:
+                    self.pdb1 = i.strip()
+                # par.append(i.strip())
+                else:
+                    self.pdb2 = i.strip()
             # checking parameters file
             if i.strip() == '-i':
                 try:
@@ -79,6 +102,7 @@ class Inputs:
             # checking pdb_resnum_table
             if i.strip() == '-f':
                 try:
+                    self.f = True
                     self.pdb_resnum_table = args[j + 1]
                 except:
                     print "No PDB_resnum_table file indicated"
@@ -94,6 +118,7 @@ class Inputs:
 
             # checking parallel python nCPUs
             if i.strip() == '-p':
+                self.p = True
                 try:
                     if args[j + 1].isdigit():
                         self.numCPUs = int(args[j + 1])
@@ -108,23 +133,30 @@ class Inputs:
                 except:
                     pass
 
+            # check -s flag. If true, click runs with -s flag
+            if i.strip() == '-s':
+                self.s = True
+
+            # check -m flag. If true, mantains *.clique file
+            if i.strip() == '-m':
+                self.m = True
+
         # cheking if the files exists
         if not len(par) in (0, 2):
             print "two pdf files are necessary as minimum or a list of superposition pairs."
             errorSentence()
 
-        if par and par[0] and par[1]:
+        # if par and par[0] and par[1]:
+        if self.pdb1 and self.pdb2:
             # if user gives two pdb files
-            if not functions.check(par[0]):
-                print "%s does'n exist, please try a real pdb file." % par[0]
+            if not functions.check(self.pdb1):
+                print "%s does'n exist, please try a real pdb file." % self.pdb1
                 errorSentence()
 
-            if not functions.check(par[1]):
-                print "%s does'n exist, please try a real pdb file." % par[1]
+            if not functions.check(self.pdb2):
+                print "%s does'n exist, please try a real pdb file." % self.pdb2
                 errorSentence()
 
-            # if this pdbs exist, we create PDB objects
-            self.superposition_pairs.append((PDB.PDB(par[0]), PDB.PDB(par[1])))
         else:
             # if no list of superposition is given
             if not '-l' in args:
@@ -163,17 +195,17 @@ class Inputs:
         the info into a dicctionary "d_table". A inverse dictionary "d_table_inverse"
         is also created to restore PDB files to IUPAC nomenclature.'''
 
-        d_table_inverse = {}  # dictionary inverse to d_table
+        # d_table_inverse = {}  # dictionary inverse to d_table
         for i, line in enumerate(open(self.tablefile)):
             if i > 0 and len(line.strip()) > 0:
                 aux = line.split(":")
                 if len(aux) == 3:
                     if not self.d_table.has_key(aux[0].strip()):
                         self.d_table[aux[0].strip()] = {aux[1].strip(): aux[2].strip(), }
-                        d_table_inverse[aux[0].strip()] = {aux[2].strip(): aux[1].strip(), }
+                        # d_table_inverse[aux[0].strip()] = {aux[2].strip(): aux[1].strip(), }
                     else:
                         self.d_table[aux[0].strip()][aux[1].strip()] = aux[2].strip()
-                        d_table_inverse[aux[0].strip()][aux[2].strip()] = aux[1].strip()
+                        # d_table_inverse[aux[0].strip()][aux[2].strip()] = aux[1].strip()
 
         # now if -f flag is choosen
         if self.pdb_resnum_table_file:
@@ -233,9 +265,9 @@ class Inputs:
             self.replaceParametersInp(self.parameters)
         else:
             # Changing Parameters.inp file according the table
-            self.modifyParametersInp()
+            self.__modifyParametersInp()
 
-    def __replaceParametersInp(self, restore=False):
+    def replaceParametersInp(self, restore=False):
         '''Realize a backup of Parameters.inp file, replace it with a new
         parameters file. If restore flag is True Parameters.inp backup is
         restored'''

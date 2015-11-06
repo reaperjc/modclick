@@ -10,13 +10,16 @@ according the table file, and finnaly the programm merge the two click's
 pdb files outputs separating the files in two MODELS
 """
 
-# import sys
+import sys
 # import subprocess
 # import os
 import time
 # from utils import *
-from functions import *
+# from functions import *
+import functions
 import Inputs
+import PDB
+
 # import cPickle
 
 
@@ -27,16 +30,9 @@ import Inputs
 
 if __name__ == '__main__':
 
-    flags = sys.argv
-
     # Cheking inputs vars
-    # inputs, superposition_pairs = prepareInputs(flags)
-    inputs = Inputs.Inputs(flags)
+    inputs = Inputs.Inputs(sys.argv)
 
-
-
-    # saving tables info
-    # d_table, d_table_inverse, d_pdbResnumTable = tables(inputs)
 
     # opening file for write outputs if user gave -o option
     if inputs.o:
@@ -47,23 +43,31 @@ if __name__ == '__main__':
     localtime = time.asctime(time.localtime(time.time()))
     f_out.write("Init time :\t%s\n" % localtime)
 
+    superposition_pairs = []  # list of PDB objects pairs that must be superposed
 
+    # if -l flag is given, then we use superposition pairs given in the file
+    if inputs.superpositions_list:
+        functions.add_superposition_pairs(inputs, superposition_pairs)
+    else:
+        # if not, then use pdb1 and pdb2
+        superposition_pairs.append((PDB.PDB(inputs.pdb1, inputs), PDB.PDB(inputs.pdb2, inputs)))
 
-
-    # if list flag -l is given we add superposition pairs to superposition_pair list
-    if '-l' in flags:
-        add_superposition_pairs(inputs, superposition_pairs)
 
     results = []
 
     # first we generate all modfiles
     for mobile, target in superposition_pairs:
-        if check(mobile["pdb"]) and check(target["pdb"]):
+        if functions.check(mobile.pdb) and functions.check(target.pdb):
             # creating modified pdb files according the table
-            modifyPDBAtoms(flags, mobile, d_table, d_pdbResnumTable)
-            modifyPDBAtoms(flags, target, d_table, d_pdbResnumTable)
+            # functions.modifyPDBAtoms(flags, mobile, inputs.d_table, inputs.d_pdbResnumTable)
+            # functions.modifyPDBAtoms(flags, target, inputs.d_table, inputs.d_pdbResnumTable)
+            mobile.modifyPDBAtoms(inputs)
+            target.modifyPDBAtoms(inputs)
+            # functions.modifyPDBAtoms2(inputs, mobile, fullpdb=None, pdbname=None,)
+            # functions.modifyPDBAtoms2(inputs, target, fullpdb=None, pdbname=None,)
 
-    if '-p' in flags:
+    # if -p flag is given then try parallel python
+    if inputs.p:
         # with this flag we try to run parallel python
         try:
             import pp
@@ -79,13 +83,30 @@ if __name__ == '__main__':
             job_server = pp.Server(ppservers=ppservers)
             inputs.numCPUs = job_server.get_ncpus()
 
-        superposition_pair_lists = divide_lists(superposition_pairs, inputs.numCPUs)
+        # now divide superpositions pair list to try to pass same jobs quantities to each core
+        divided_superposition_pair_lists = functions.divide_lists(superposition_pairs, inputs.numCPUs)
         # ~ cPickle.dump(superposition_pair_lists,open("aers.data","w"))
 
-        jobs = [(i, job_server.submit(click, (i, flags, d_table, d_pdbResnumTable, d_table_inverse,), \
-                                      (leer, formatAtomName, check, modifyPDBAtoms, mergeClickResults,
-                                       deleteModifiedFiles,), \
-                                      ("subprocess", "time"))) for i in superposition_pair_lists]
+        # list comprehension of parallel python jobs
+        jobs = [(
+                    i_superposition_pairs,
+                    job_server.submit(
+                        functions.click,
+                        (i_superposition_pairs, inputs),
+                        (
+                            functions.leer,
+                            functions.formatAtomName,
+                            functions.check,
+                            functions.modifyPDBAtoms,
+                            functions.mergeClickResults,
+                            functions.deleteModifiedFiles,
+                        ),
+                        ("subprocess", "time")))
+
+                for i_superposition_pairs in divided_superposition_pair_lists
+                ]
+
+        # Run jobs
         # ~ print [j() for i,j in jobs]
         for i, job in jobs:
             aux = job()
@@ -96,14 +117,19 @@ if __name__ == '__main__':
 
     else:
         # running with just one core :(
-        results = click(superposition_pairs, flags, d_table, d_pdbResnumTable, d_table_inverse)
+        results = functions.click(superposition_pairs, inputs)
+        print results
+        print "caca"
 
     # Delete modified files
-    for mobile, target in superposition_pairs:
-        deleteModifiedFiles(flags, mobile, target, True)
+    # for mobile, target in superposition_pairs:
+    #     functions.deleteModifiedFiles(inputs, mobile, target, True)
 
-    write_results(results, f_out)
+    # wite results
+    functions.write_results(results, f_out)
     f_out.close()
-    # if -i flag is used, now we restore the parameters.inp file
-    if '-i' in flags:
-        replaceParametersInp(inputs.parameters, restore=True)
+
+
+    # if -i flag is used, restore the parameters.inp file
+    if inputs.i:
+        inputs.replaceParametersInp(inputs.parameters, restore=True)

@@ -6,62 +6,12 @@ from utils import *
 from functions import *
 import cPickle
 import Inputs
+import PDB
 
 
 ###############
 ## FUNCTIONS ##
 ###############
-
-def PDB(pdb):
-    '''Antes una clase, ahora una funcion que crea un diccionario'''
-    d = {}
-    d["pdb"] = os.path.abspath(pdb)
-    abspath = os.path.abspath(pdb)
-    partes = abspath.split("/")
-    d["name"] = partes[-1][:-4]
-    d["path"] = "/".join(partes[:-1] + ["", ])
-    return d
-
-
-def tables(inputs):
-    '''Open the "table" file with new atomtypes specifications and save
-	the info into a dicctionary "d_table". A inverse dictionary "d_table_inverse"
-	is also created to restore PDB files to IUPAC nomenclature.'''
-
-    d_table = {}  # dictionary with {atomName:newAtomType}
-    d_table_inverse = {}  # dictionary inverse to d_table
-    d_pdbResnumTable = {}  # dictionary with {PDB:{CHAIN:{resnum:None,},},}
-    for i, line in enumerate(open(inputs.table)):
-        if i > 0 and len(line.strip()) > 0:
-            aux = line.split(":")
-            if len(aux) == 3:
-                if not d_table.has_key(aux[0].strip()):
-                    d_table[aux[0].strip()] = {aux[1].strip(): aux[2].strip(), }
-                    d_table_inverse[aux[0].strip()] = {aux[2].strip(): aux[1].strip(), }
-                else:
-                    d_table[aux[0].strip()][aux[1].strip()] = aux[2].strip()
-                    d_table_inverse[aux[0].strip()][aux[2].strip()] = aux[1].strip()
-
-    # now if -f flag is choosen
-    if inputs.pdb_resnum_table:
-        f = open(inputs.pdb_resnum_table)
-        l = f.readlines()
-        f.close()
-        for i in l[1:]:
-            aux = i.split()
-            pdb = aux[0].strip()
-            chain = aux[1].strip()
-            number = aux[2].strip()
-            if not d_pdbResnumTable.has_key(pdb):
-                d_pdbResnumTable[aux[0]] = {}
-            if not d_pdbResnumTable[aux[0]].has_key(chain):
-                d_pdbResnumTable[pdb][chain] = {}
-            d_pdbResnumTable[pdb][chain][number] = None
-    else:
-        d_pdbResnumTable = None
-
-    return d_table, d_table_inverse, d_pdbResnumTable
-
 
 def formatAtomName(atomName):
     '''Return the atomname field with the correct PDB format'''
@@ -85,11 +35,11 @@ def modifyPDBAtoms(flags, pdb_obj, d_table, d_pdbResnumTable, fullpdb=None, pdbn
     if fullpdb:
         pdb = fullpdb
     else:
-        pdb = pdb_obj["pdb"]
+        pdb = pdb_obj.pdb
     if pdbname:
         name_pdb = pdbname
     else:
-        name_pdb = pdb_obj["name"]
+        name_pdb = pdb_obj.name
 
     l_newPDB = []
     for line in open(pdb):
@@ -128,8 +78,62 @@ def modifyPDBAtoms(flags, pdb_obj, d_table, d_pdbResnumTable, fullpdb=None, pdbn
     f.close()
 
 
+def modifyPDBAtoms2(inputs, pdb_obj, fullpdb=None, pdbname=None, clickOutput=False):
+    '''Take a pdb file as input and returns a new PDB file with atomtypes
+	modifications. The new file has the "Mod" word before .pdb extension.
+	If clickOutput flag is True, the pdb file will be modified with normal
+	IUPAC names for a standard PDB file'''
+    d_keywordRecord = {"ATOM": None, "HETATM": None, "ANISOU": None, "SIGUIJ": None}
 
-def deleteModifiedFiles(flags, mobile, target, deleteModfiles=False):
+    if fullpdb:
+        pdb = fullpdb
+    else:
+        pdb = pdb_obj.pdb
+    if pdbname:
+        name_pdb = pdbname
+    else:
+        name_pdb = pdb_obj.name
+
+    l_newPDB = []
+    for line in open(pdb):
+        if line[:6].strip() in d_keywordRecord:
+            resname = line[17:20].strip()
+            atomname = line[12:16].strip()
+            chain = line[21]
+            resnum = line[22:26].strip()
+
+            # first we can modify a line just if the table has the right resname and atomname
+            if inputs.d_table.has_key(resname):
+                if inputs.d_table[resname].has_key(atomname):
+                    if inputs.f:
+                        # if -f flag is given, we use only the line with residue specified in d_pdbResnumTable
+                        if name_pdb in inputs.d_pdbResnumTable and \
+                           chain in inputs.d_pdbResnumTable[name_pdb] and \
+                           resnum in inputs.d_pdbResnumTable[name_pdb][chain]:
+
+                            l_newPDB.append(line[:12] + formatAtomName(inputs.d_table[resname][atomname]) + line[16:])
+                        else:
+                            # ~ l_newPDB.append(line[:12] + formatAtomName(d_table[resname][atomname]) + line[16:])
+                            l_newPDB.append(line)
+                    else:
+                        l_newPDB.append(line[:12] + formatAtomName(inputs.d_table[resname][atomname]) + line[16:])
+                else:
+                    l_newPDB.append(line)
+            else:
+                l_newPDB.append(line)
+        else:
+            l_newPDB.append(line)
+    if not clickOutput:
+        f = open("%sMod.pdb" % pdb[:-4], "w")
+    else:
+        f = open("%s.pdb" % pdb[:-4], "w")
+    for i in l_newPDB:
+        f.write(i)
+    f.close()
+
+
+
+def deleteModifiedFiles(inputs, mobile, target, deleteModfiles=False):
     '''This function deletes temp modified pdb files and the two traslated
 	pdbs generated by click'''
 
@@ -141,8 +145,8 @@ def deleteModifiedFiles(flags, mobile, target, deleteModfiles=False):
         # ~ target["pdb"][:-4])],
         # ~ shell = True)
         try:
-            os.unlink("%sMod.pdb" % (mobile["pdb"][:-4]))
-            os.unlink("%sMod.pdb" % (target["pdb"][:-4]))
+            os.unlink("%sMod.pdb" % (mobile.pdb[:-4]))
+            os.unlink("%sMod.pdb" % (target.pdb[:-4]))
         except:
             pass
 
@@ -156,55 +160,80 @@ def deleteModifiedFiles(flags, mobile, target, deleteModfiles=False):
         # ~ mobile["name"])],
         # ~ shell = True)
         try:
-            os.unlink("%sMod-%sMod.1.pdb" % (mobile["pdb"][:-4], target["name"]))
-            os.unlink("%sMod-%sMod.1.pdb" % (target["pdb"][:-4], mobile["name"]))
+            os.unlink("%sMod-%sMod.1.pdb" % (mobile.pdb[:-4], target.name))
+            os.unlink("%sMod-%sMod.1.pdb" % (target.pdb[:-4], mobile.name))
         except:
             pass
 
-        if not '-m' in flags:
+        # if -m flag is not given, then try to delete generated .clique files
+        if not inputs.m:
             # ~ proc = subprocess.call(["rm -f %s%sMod-%sMod.pdb.1.clique"%(mobile["path"],
             # ~ mobile["name"],
             # ~ target["name"])],
             # ~ shell = True)
             try:
-                os.unlink("%s%sMod-%sMod.pdb.1.clique" % (mobile["path"],
-                                                          mobile["name"],
-                                                          target["name"]))
-                os.unlink("%s%s_%s_Merged.pdb" % (mobile["path"], mobile["name"], target["name"]))
+                os.unlink("%s%sMod-%sMod.pdb.1.clique" % (mobile.path,
+                                                          mobile.name,
+                                                          target.name))
+                os.unlink("%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name))
             except:
                 pass
 
 
-def mergeClickResults(flags, mobile, target):
-    '''Merge click results in a single file. The files are separated with
+def mergeRotatedMobileWithTarget(inputs, mobile, target):
+    '''Merge rotated mobile click result with target in a single file. The files are separated with
 	MODEL record'''
 
     try:
-        f2 = open("%s%sMod-%sMod.1.pdb" % (mobile["path"], mobile["name"], target["name"]))
+        f_mobile = open("%s%sMod-%sMod.1.pdb" % (mobile.path, mobile.name, target.name))
 
         # ~ f3 = open("%s%sMod-%sMod.1.pdb"%(target["path"], target["name"], mobile["name"]))
-        f3 = open("%s%sMod.pdb" % (target["path"], target["name"]))
+        # target doesn't change its coordinates
+        # f_target = open("%s%sMod.pdb" % (target.path, target.name))
 
     except:
-        deleteModifiedFiles(flags, mobile, target)
+        deleteModifiedFiles(inputs, mobile, target)
         # ~ sys.exit(1)
         return 0
 
-    f = open("%s%s_%s_Merged.pdb" % (mobile["path"], mobile["name"], target["name"]), "w")
+    # Open merged file to write pdb lines
+    f = open("%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name), "w")
     f.write("%s\n" % ("MODEL        1".ljust(80)))
 
-    for i in f2.readlines():
-        f.write(i)
+
+    # print "largo modificado"
+    # print len(f_mobile.readlines())
+    # print "largo original"
+    # print len(mobile.original_lines)
+
+    wa = f_mobile.readlines()
+    print "last line"
+    print wa[-1]
+    for i,j in enumerate(wa):
+        if i== 0:
+            print j
+            print mobile.original_lines[i]
+
+        if len(wa) == i+2:
+            print j
+            print mobile.original_lines[i]
+
+        # print j
+        if len(j.strip()) > 0:
+            coordinate_section = j[30:54]
+            modified_line = mobile.original_lines[i][:30] + coordinate_section + mobile.original_lines[i][54:]
+            # print modified_line
+            f.write(modified_line)
     f.write("%s\n" % "ENDMDL".ljust(80))
     f.write("%s\n" % ("MODEL        2".ljust(80)))
 
-    for i in f3.readlines():
+    # for i in f_target.readlines():
+    for i in target.original_lines:
         f.write(i)
     f.write("ENDMDL".ljust(80))
 
     f.close()
-    f2.close()
-    f3.close()
+    f_mobile.close()
 
 
 def check(input_file):
@@ -220,123 +249,6 @@ def check(input_file):
     return True
 
 
-def prepareInputs(inputs):
-    '''Prepare all files according to flags inputs'''
-    nom_atomos = {'A': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'N7', 'C8', 'N9', 'N6'], \
-                  'G': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'N7', 'C8', 'N9', 'O6', 'N2'], \
-                  'C': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'O2', 'N4'], \
-                  'T': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'O2', 'O4', 'C7'],
-				  # notar que el C7 es el metilo en el C5 \
-                  'U': ['N1', 'C2', 'N3', 'C4', 'C5', 'C6', 'O2', 'O4']}
-    # creating inputs object
-    inputs = Inputs()
-    superposition_pairs = []  # list of all superposition pairs
-    par = []  # var use for save pdb inputs
-
-    for j, i in enumerate(sys.argv):
-        # check the pdb files
-        if i.strip()[-4:] == '.pdb':
-            par.append(i.strip())
-
-        # checking parameters file
-        if i.strip() == '-i':
-            try:
-                inputs.parameters = sys.argv[j + 1]
-            except:
-                print "No Parameters file indicated"
-                errorSentence()
-
-        # checking table file
-        if i.strip() == '-t':
-            try:
-                inputs.table = sys.argv[j + 1]
-            except:
-                print "No table file indicated"
-                errorSentence()
-
-        # checking pdb_resnum_table
-        if i.strip() == '-f':
-            try:
-                inputs.pdb_resnum_table = sys.argv[j + 1]
-            except:
-                print "No PDB_resnum_table file indicated"
-                errorSentence()
-
-        # checking superposition list
-        if i.strip() == '-l':
-            try:
-                inputs.superpositions_list = sys.argv[j + 1]
-            except:
-                print "No superpositions list file indicated"
-                errorSentence()
-
-        # checking parallel python nCPUs
-        if i.strip() == '-p':
-            try:
-                if sys.argv[j + 1].isdigit():
-                    inputs.numCPUs = int(sys.argv[j + 1])
-            except:
-                pass
-
-        # checking if output file name is given
-        if i.strip() == '-o':
-            try:
-                inputs.output = sys.argv[j + 1].strip()
-            except:
-                pass
-
-    # cheking if the files exists
-
-    if not len(par) in (0, 2):
-        print "two pdf files are necessary as minimum or a list of superposition pairs."
-        errorSentence()
-
-    if par and par[0] and par[1]:
-        # if user gives two pdb files
-        if not check(par[0]):
-            print "%s does'n exist, please try a real pdb file." % par[0]
-            errorSentence()
-
-        if not check(par[1]):
-            print "%s does'n exist, please try a real pdb file." % par[1]
-            errorSentence()
-
-        # if this pdbs exist, we create PDB objects
-        superposition_pairs.append((PDB(par[0]), PDB(par[1])))
-    else:
-        # if no list of superposition is given
-        if not '-l' in sys.argv:
-            print "Click needs two pdb files."
-            errorSentence()
-
-    # if check
-    if not check(inputs.parameters):
-        print "%s does'n exist, please try a real parameters file." % inputs.parameters
-        errorSentence()
-
-    if not inputs.table:
-        print "modclick needs a table file."
-        errorSentence()
-    else:
-        if not check(inputs.table):
-            print "%s does'n exist, please try a real table file." % inputs.table
-            errorSentence()
-
-    if not check(inputs.pdb_resnum_table):
-        print "%s does'n exist, please try a real PDB_resnum_table file." % inputs.pdb_resnum_table
-        errorSentence()
-
-    if not check(inputs.superpositions_list):
-        print "%s does'n exist, please try a real superposition list." % inputs.superpositions_list
-        errorSentence()
-
-    # checking Parameters.inp file
-    if not check("Parameters.inp"):
-        print "Parameters.inp does'n exist."
-        sys.exit(1)
-
-    # if everething goes fine
-    return inputs, superposition_pairs
 
 
 
@@ -355,125 +267,176 @@ def add_superposition_pairs(inputs, superposition_pairs):
         aux = i.split(',')
 
         if len(aux) == 2:
-            superposition_pairs.append((PDB(folder_path + aux[0].strip()), \
-                                        PDB(folder_path + aux[1].strip())))
+            superposition_pairs.append((PDB.PDB(folder_path + aux[0].strip(), inputs),
+                                        PDB.PDB(folder_path + aux[1].strip(), inputs)))
 
 
-def leer(archivo):
-    f = open(archivo)
-    num = 0
-    rmsd = None
-    for line in f:
-        if num == 0:
-            # ~ print line
-            if line[28:].strip() == '0':
-                # if this is iqual to 0 that means matched atoms was found :(
-                rmsd = "----"
-                break
-            else:
-                num += 1
-                continue
-        elif num == 1:
-            try:
-                rmsd = line[6:].strip()
-                f.close()
-                return rmsd
-            except:
-                f.close()
-                return '----'
-        num += 1
-    f.close()
+# def leer(archivo):
+#     f = open(archivo)
+#     num = 0
+#     rmsd = None
+#     for line in f:
+#         if num == 0:
+#             # ~ print line
+#             if line[28:].strip() == '0':
+#                 # if this is iqual to 0 that means matched atoms was found :(
+#                 rmsd = "----"
+#                 break
+#             else:
+#                 num += 1
+#                 continue
+#         elif num == 1:
+#             try:
+#                 rmsd = line[6:].strip()
+#                 f.close()
+#                 return rmsd
+#             except:
+#                 f.close()
+#                 return '----'
+#         num += 1
+#     f.close()
 
 
-def click(superposition_list, flags, d_table, d_pdbResnumTable, d_table_inverse):
+def click(superposition_list, inputs):
     '''This function takes a superposition_list of PDB objects and superpose
 	them with click, then returns a results list with each superposition pair
 	pdbs, RMSD and SO reported by click'''
+
+
+    clickExecutable = './click'
+    # clickExecutable = './clickWeb'
 
     results = []
     # ~ fbasura = open("basura.basura","w")
 
     for mobile, target in superposition_list:
-        if check(mobile["pdb"]) and check(target["pdb"]):
-            # running click
-            if '-s' in flags:
-                # with this flag click doesn't creates rotated pdb files
-                proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile["pdb"][:-4], \
-                                         "%sMod.pdb" % target["pdb"][:-4], \
-                                         "-s 0"], \
-                                        stdout=subprocess.PIPE,
-                                        shell=False,
-                                        executable='./click',
-                                        close_fds=True,
-                                        ).communicate()[0]
-            # ~ proc = subprocess.call(["basura","%sMod.pdb"%mobile["pdb"][:-4],
-            # ~ "%sMod.pdb"%target["pdb"][:-4],
-            # ~ "-s 0"],
-            # ~ shell = False,
-            # ~ executable='./click',
-            # ~ close_fds=True,
-            # ~ )
 
-            # ~ (mobile["pdb"][:-4],target["pdb"][:-4])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
-            else:
-                proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile["pdb"][:-4], \
-                                         "%sMod.pdb" % target["pdb"][:-4], ],
-                                        stdout=subprocess.PIPE,
-                                        shell=False,
-                                        executable='./click',
-                                        close_fds=True,
-                                        ).communicate()[0]
+        # if check(mobile.pdb) and check(target.pdb):
 
-            lines = proc.split("\n")
-            # ~ print mobile["name"],target["name"]
-            # ~ print lines[0]
+        # running click
+        # if -s flag was given
+        if inputs.s:
 
-            if lines[0][28:].strip() == '0':
-                # if this is iqual to 0 that means matched atoms was found :(
-                rmsd = " NA "
-            else:
-                try:
-                    rmsd = lines[1][6:].strip()
-                except:
-                    rmsd = " NA "
-            results.append((mobile["name"], target["name"], rmsd))
-            sys.stdout.flush()
+            commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                        "%sMod.pdb" % target.pdb[:-4],
+                        "-s 0"
+                        ]
 
-            # ~ rmsd = leer("%s%sMod-%sMod.pdb.1.clique"%(mobile["path"], mobile["name"],target["name"]))
-            # ~ results.append((mobile["name"],target["name"],rmsd))
+            # with this flag click doesn't creates rotated pdb files
+            # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
+            #                          "%sMod.pdb" % target.pdb[:-4],
+            #                          "-s 0"],
+            #                         stdout=subprocess.PIPE,
+            #                         shell=False,
+            #                         executable=clickExecutable,
+            #                         close_fds=True,
+            #                         ).communicate()[0]
+            #
 
-            if not '-s' in flags:
-                # merging click PDB files outputs
-                mergeClickResults(flags, mobile, target)
+        # ~ proc = subprocess.call(["basura","%sMod.pdb"%mobile["pdb"][:-4],
+        # ~ "%sMod.pdb"%target["pdb"][:-4],
+        # ~ "-s 0"],
+        # ~ shell = False,
+        # ~ executable='./click',
+        # ~ close_fds=True,
+        # ~ )
 
-                # modify the resulting PDB file to IUPAC normal nomenclature
-                merged_pdb_full = "%s%s_%s_Merged.pdb" % (mobile["path"], mobile["name"], target["name"])
-                merged_pdb_name = "%s_%s_Merged" % (mobile["name"], target["name"])
-                try:
-                    modifyPDBAtoms(flags, None, d_table_inverse, d_pdbResnumTable, merged_pdb_full, merged_pdb_name,
-                                   clickOutput=True)
-                except:
-                    pass
-
-
+        # ~ (mobile["pdb"][:-4],target["pdb"][:-4])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
         else:
-            pdb1 = mobile["name"]
-            pdb2 = target["name"]
-            if not check(mobile["pdb"]):
-                pdb1 = "(%s)" % mobile["name"]
-            if not check(target["pdb"]):
-                pdb2 = "(%s)" % target["name"]
 
-            results.append((pdb1, pdb2, " NA "))
+            commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                        "%sMod.pdb" % target.pdb[:-4]
+                        ]
+
+
+            # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
+            #                          "%sMod.pdb" % target.pdb[:-4], ],
+            #                         stdout=subprocess.PIPE,
+            #                         shell=False,
+            #                         executable=clickExecutable,
+            #                         close_fds=True,
+            #                         ).communicate()[0]
+
+
+        # Run click process
+        proc = subprocess.Popen(commands,
+                                stdout=subprocess.PIPE,
+                                shell=False,
+                                executable=clickExecutable,
+                                close_fds=True,
+                                ).communicate()[0]
+
+        # Now extract RMSD value for the records
+        lines = proc.split("\n")
+        # print lines
+
+        rmsd = " NA "
+
+        for i in lines:
+            if i[:10] == 'The number':
+                if i.split('=')[-1].strip() == '0':
+                    rmsd = " NA "
+                else:
+                    for j in lines:
+                        if j[:4] == "RMSD":
+                            rmsd = j.split('=')[-1].strip()
+
+
+
+        results.append((mobile.name, target.name, rmsd))
+        sys.stdout.flush()
+
+        # ~ rmsd = leer("%s%sMod-%sMod.pdb.1.clique"%(mobile["path"], mobile["name"],target["name"]))
+        # ~ results.append((mobile["name"],target["name"],rmsd))
+
+
+        # Remember that -s flag means runs click with -s flag. With that click doesn't create transformed pdbs
+        # and cannot generate Merged pdb
+        if not inputs.s:
+            # merging click PDB files outputs
+            mergeRotatedMobileWithTarget(inputs, mobile, target)
+
+            # modify the resulting PDB file to IUPAC normal nomenclature
+            merged_pdb_full = "%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name)
+            merged_pdb_name = "%s_%s_Merged" % (mobile.name, target.name)
+
+            # ######################################################
+            # Esta parte es la que reescribe mal los PDB!!!!!!!!!!!!!!
+            # ######################################################3
+            # try:
+            #     modifyPDBAtoms(flags, None, d_table_inverse, d_pdbResnumTable, merged_pdb_full, merged_pdb_name,
+            #                    clickOutput=True)
+            # except:
+            #     pass
+
+
+        # else:
+        #     pdb1 = mobile.name
+        #     pdb2 = target.name
+        #     if not check(mobile.pdb):
+        #         pdb1 = "(%s)" % mobile.name
+        #     if not check(target.pdb):
+        #         pdb2 = "(%s)" % target.name
+        #
+        #     results.append((pdb1, pdb2, " NA "))
+
+
+
+
+
 
         # deleting all temp files created
-        deleteModifiedFiles(flags, mobile, target)
+        # deleteModifiedFiles(inputs, mobile, target)
+
+
     # eliminamos los archivos .clique creados
     # ~ if not '-m' in flags:
     # ~ proc = subprocess.Popen(["rm -f %s/%s-%s.pdb.1.clique"%\
     # ~ (mobile["path"], mobile["name"],target["name"])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
     # ~ l2 = proc.communicate()
     # ~ fbasura.close()
+
+
     return results
 
 
