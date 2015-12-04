@@ -207,16 +207,16 @@ def mergeRotatedMobileWithTarget(inputs, mobile, target):
     # print len(mobile.original_lines)
 
     wa = f_mobile.readlines()
-    print "last line"
-    print wa[-1]
+    # print "last line"
+    # print wa[-1]
     for i,j in enumerate(wa):
-        if i== 0:
-            print j
-            print mobile.original_lines[i]
+        # if i== 0:
+            # print j
+            # print mobile.original_lines[i]
 
-        if len(wa) == i+2:
-            print j
-            print mobile.original_lines[i]
+        # if len(wa) == i+2:
+            # print j
+            # print mobile.original_lines[i]
 
         # print j
         if len(j.strip()) > 0:
@@ -224,6 +224,7 @@ def mergeRotatedMobileWithTarget(inputs, mobile, target):
             modified_line = mobile.original_lines[i][:30] + coordinate_section + mobile.original_lines[i][54:]
             # print modified_line
             f.write(modified_line)
+
     f.write("%s\n" % "ENDMDL".ljust(80))
     f.write("%s\n" % ("MODEL        2".ljust(80)))
 
@@ -303,140 +304,155 @@ def click(superposition_list, inputs):
 	pdbs, RMSD and SO reported by click'''
 
 
-    clickExecutable = './click'
-    # clickExecutable = './clickWeb'
+    # clickExecutable = './click'
+    clickExecutable = './clickWeb'
 
     results = []
     # ~ fbasura = open("basura.basura","w")
 
     for mobile, target in superposition_list:
 
+        itsOk1 = check(mobile.pdb)
+        itsOk2 = check(target.pdb)
+
         # if check(mobile.pdb) and check(target.pdb):
+        if itsOk1 and itsOk2:
 
-        # running click
-        # if -s flag was given
-        if inputs.s:
+            # running click
+            # if -s flag was given
+            if inputs.s:
+                # print "%sMod.pdb" % mobile.pdb[:-4]
+                # print "%sMod.pdb" % target.pdb[:-4]
+                commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                            "%sMod.pdb" % target.pdb[:-4],
+                            "-s 0"
+                            ]
 
-            commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
-                        "%sMod.pdb" % target.pdb[:-4],
-                        "-s 0"
-                        ]
+                # with this flag click doesn't creates rotated pdb files
+                # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                #                          "%sMod.pdb" % target.pdb[:-4],
+                #                          "-s 0"],
+                #                         stdout=subprocess.PIPE,
+                #                         shell=False,
+                #                         executable=clickExecutable,
+                #                         close_fds=True,
+                #                         ).communicate()[0]
+                #
 
-            # with this flag click doesn't creates rotated pdb files
-            # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
-            #                          "%sMod.pdb" % target.pdb[:-4],
-            #                          "-s 0"],
-            #                         stdout=subprocess.PIPE,
-            #                         shell=False,
-            #                         executable=clickExecutable,
-            #                         close_fds=True,
-            #                         ).communicate()[0]
+            # ~ proc = subprocess.call(["basura","%sMod.pdb"%mobile["pdb"][:-4],
+            # ~ "%sMod.pdb"%target["pdb"][:-4],
+            # ~ "-s 0"],
+            # ~ shell = False,
+            # ~ executable='./click',
+            # ~ close_fds=True,
+            # ~ )
+
+            # ~ (mobile["pdb"][:-4],target["pdb"][:-4])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
+            else:
+
+                commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                            "%sMod.pdb" % target.pdb[:-4]
+                            ]
+
+
+                # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                #                          "%sMod.pdb" % target.pdb[:-4], ],
+                #                         stdout=subprocess.PIPE,
+                #                         shell=False,
+                #                         executable=clickExecutable,
+                #                         close_fds=True,
+                #                         ).communicate()[0]
+
+
+            # Run click process
+            proc = subprocess.Popen(commands,
+                                    stdout=subprocess.PIPE,
+                                    shell=False,
+                                    executable=clickExecutable,
+                                    close_fds=True,
+                                    ).communicate()[0]
+
+            # Now extract RMSD value for the records
+            lines = proc.split("\n")
+            # print lines
+
+            rmsd = " NA "
+
+            for i in lines:
+                if i[:10] == 'The number':
+                    if i.split('=')[-1].strip() == '0':
+                        rmsd = " NA "
+                    else:
+                        for j in lines:
+                            if j[:4] == "RMSD":
+                                rmsd = j.split('=')[-1].strip()
+
+
+
+            results.append((mobile.name, target.name, rmsd))
+            sys.stdout.flush()
+
+            # ~ rmsd = leer("%s%sMod-%sMod.pdb.1.clique"%(mobile["path"], mobile["name"],target["name"]))
+            # ~ results.append((mobile["name"],target["name"],rmsd))
+
+
+            # Remember that -s flag means runs click with -s flag. With that click doesn't create transformed pdbs
+            # and cannot generate Merged pdb
+            if not inputs.s:
+                # print "%sMod.pdb" % mobile.pdb[:-4]
+                # merging click PDB files outputs
+                mergeRotatedMobileWithTarget(inputs, mobile, target)
+
+                # modify the resulting PDB file to IUPAC normal nomenclature
+                # merged_pdb_full = "%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name)
+                # merged_pdb_name = "%s_%s_Merged" % (mobile.name, target.name)
+
+                # ######################################################
+                # Esta parte es la que reescribe mal los PDB!!!!!!!!!!!!!!
+                # ######################################################3
+                # try:
+                #     modifyPDBAtoms(flags, None, d_table_inverse, d_pdbResnumTable, merged_pdb_full, merged_pdb_name,
+                #                    clickOutput=True)
+                # except:
+                #     pass
+
+
+            # else:
+            #     pdb1 = mobile.name
+            #     pdb2 = target.name
+            #     if not check(mobile.pdb):
+            #         pdb1 = "(%s)" % mobile.name
+            #     if not check(target.pdb):
+            #         pdb2 = "(%s)" % target.name
             #
+            #     results.append((pdb1, pdb2, " NA "))
 
-        # ~ proc = subprocess.call(["basura","%sMod.pdb"%mobile["pdb"][:-4],
-        # ~ "%sMod.pdb"%target["pdb"][:-4],
-        # ~ "-s 0"],
-        # ~ shell = False,
-        # ~ executable='./click',
-        # ~ close_fds=True,
-        # ~ )
 
-        # ~ (mobile["pdb"][:-4],target["pdb"][:-4])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
+
+
+
+
+            # deleting all temp files created
+            # deleteModifiedFiles(inputs, mobile, target)
+
+
+        # eliminamos los archivos .clique creados
+        # ~ if not '-m' in flags:
+        # ~ proc = subprocess.Popen(["rm -f %s/%s-%s.pdb.1.clique"%\
+        # ~ (mobile["path"], mobile["name"],target["name"])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
+        # ~ l2 = proc.communicate()
+        # ~ fbasura.close()
+    else:
+        if itsOk1:
+            name1 = mobile.name
         else:
+            name1 = "(%s)"%mobile.name
 
-            commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
-                        "%sMod.pdb" % target.pdb[:-4]
-                        ]
-
-
-            # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
-            #                          "%sMod.pdb" % target.pdb[:-4], ],
-            #                         stdout=subprocess.PIPE,
-            #                         shell=False,
-            #                         executable=clickExecutable,
-            #                         close_fds=True,
-            #                         ).communicate()[0]
-
-
-        # Run click process
-        proc = subprocess.Popen(commands,
-                                stdout=subprocess.PIPE,
-                                shell=False,
-                                executable=clickExecutable,
-                                close_fds=True,
-                                ).communicate()[0]
-
-        # Now extract RMSD value for the records
-        lines = proc.split("\n")
-        # print lines
-
-        rmsd = " NA "
-
-        for i in lines:
-            if i[:10] == 'The number':
-                if i.split('=')[-1].strip() == '0':
-                    rmsd = " NA "
-                else:
-                    for j in lines:
-                        if j[:4] == "RMSD":
-                            rmsd = j.split('=')[-1].strip()
-
-
-
-        results.append((mobile.name, target.name, rmsd))
-        sys.stdout.flush()
-
-        # ~ rmsd = leer("%s%sMod-%sMod.pdb.1.clique"%(mobile["path"], mobile["name"],target["name"]))
-        # ~ results.append((mobile["name"],target["name"],rmsd))
-
-
-        # Remember that -s flag means runs click with -s flag. With that click doesn't create transformed pdbs
-        # and cannot generate Merged pdb
-        if not inputs.s:
-            # merging click PDB files outputs
-            mergeRotatedMobileWithTarget(inputs, mobile, target)
-
-            # modify the resulting PDB file to IUPAC normal nomenclature
-            merged_pdb_full = "%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name)
-            merged_pdb_name = "%s_%s_Merged" % (mobile.name, target.name)
-
-            # ######################################################
-            # Esta parte es la que reescribe mal los PDB!!!!!!!!!!!!!!
-            # ######################################################3
-            # try:
-            #     modifyPDBAtoms(flags, None, d_table_inverse, d_pdbResnumTable, merged_pdb_full, merged_pdb_name,
-            #                    clickOutput=True)
-            # except:
-            #     pass
-
-
-        # else:
-        #     pdb1 = mobile.name
-        #     pdb2 = target.name
-        #     if not check(mobile.pdb):
-        #         pdb1 = "(%s)" % mobile.name
-        #     if not check(target.pdb):
-        #         pdb2 = "(%s)" % target.name
-        #
-        #     results.append((pdb1, pdb2, " NA "))
-
-
-
-
-
-
-        # deleting all temp files created
-        # deleteModifiedFiles(inputs, mobile, target)
-
-
-    # eliminamos los archivos .clique creados
-    # ~ if not '-m' in flags:
-    # ~ proc = subprocess.Popen(["rm -f %s/%s-%s.pdb.1.clique"%\
-    # ~ (mobile["path"], mobile["name"],target["name"])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
-    # ~ l2 = proc.communicate()
-    # ~ fbasura.close()
-
-
+        if itsOk2:
+            name2 = target.name
+        else:
+            name2 = "(%s)"%target.name
+        results.append((name1, name2, '----'))
     return results
 
 

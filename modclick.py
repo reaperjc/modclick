@@ -118,8 +118,8 @@ if __name__ == '__main__':
     else:
         # running with just one core :(
         results = functions.click(superposition_pairs, inputs)
-        print results
-        print "caca"
+        # print results
+        # print "caca"
 
     # Delete modified files
     # for mobile, target in superposition_pairs:
