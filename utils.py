@@ -5,7 +5,7 @@ def helpInfo():
 DEPENDENCIES
 
 	This python script needs the next files in the same script folder:
-		*Click binay
+		*Click binary
 		*Parameters.inp
 		*table file specifing new atomtypes
 		*optional: Another Parameters file

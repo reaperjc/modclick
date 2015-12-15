@@ -305,7 +305,8 @@ def click(superposition_list, inputs):
 
 
     # clickExecutable = './click'
-    clickExecutable = './clickWeb'
+    #clickExecutable = '/home/norodrig/Programs/bin/Click/click'
+    clickExecutable = '/home/norodrig/Programs/bin/Click_multiple/clickmul'
 
     results = []
     # ~ fbasura = open("basura.basura","w")
@@ -323,77 +324,76 @@ def click(superposition_list, inputs):
             if inputs.s:
                 # print "%sMod.pdb" % mobile.pdb[:-4]
                 # print "%sMod.pdb" % target.pdb[:-4]
-                commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                commands1 = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
                             "%sMod.pdb" % target.pdb[:-4],
                             "-s 0"
                             ]
 
-                # with this flag click doesn't creates rotated pdb files
-                # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
-                #                          "%sMod.pdb" % target.pdb[:-4],
-                #                          "-s 0"],
-                #                         stdout=subprocess.PIPE,
-                #                         shell=False,
-                #                         executable=clickExecutable,
-                #                         close_fds=True,
-                #                         ).communicate()[0]
-                #
+                commands2 = ["basura", "%sMod.pdb" % target.pdb[:-4],
+                            "%sMod.pdb" % mobile.pdb[:-4],
+                            "-s 0"
+                            ]
 
-            # ~ proc = subprocess.call(["basura","%sMod.pdb"%mobile["pdb"][:-4],
-            # ~ "%sMod.pdb"%target["pdb"][:-4],
-            # ~ "-s 0"],
-            # ~ shell = False,
-            # ~ executable='./click',
-            # ~ close_fds=True,
-            # ~ )
-
-            # ~ (mobile["pdb"][:-4],target["pdb"][:-4])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
             else:
 
-                commands = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
+                commands1 = ["basura", "%sMod.pdb" % mobile.pdb[:-4],
                             "%sMod.pdb" % target.pdb[:-4]
                             ]
 
-
-                # proc = subprocess.Popen(["basura", "%sMod.pdb" % mobile.pdb[:-4],
-                #                          "%sMod.pdb" % target.pdb[:-4], ],
-                #                         stdout=subprocess.PIPE,
-                #                         shell=False,
-                #                         executable=clickExecutable,
-                #                         close_fds=True,
-                #                         ).communicate()[0]
+                commands2 = ["basura", "%sMod.pdb" % target.pdb[:-4],
+                            "%sMod.pdb" % mobile.pdb[:-4]
+                            ]
 
 
             # Run click process
-            proc = subprocess.Popen(commands,
+            proc1 = subprocess.Popen(commands1,
                                     stdout=subprocess.PIPE,
                                     shell=False,
                                     executable=clickExecutable,
                                     close_fds=True,
                                     ).communicate()[0]
 
+            proc2 = subprocess.Popen(commands2,
+                        stdout=subprocess.PIPE,
+                        shell=False,
+                        executable=clickExecutable,
+                        close_fds=True,
+                        ).communicate()[0]
+
+            #print proc1, proc2
             # Now extract RMSD value for the records
-            lines = proc.split("\n")
-            # print lines
+            lines1 = proc1.split("\n")
+            lines2 = proc2.split("\n")
+            print lines1
+            print lines2
 
-            rmsd = " NA "
+            for l, ll in zip(lines1, lines2):
+                if "The number of matched residues" in l:
+                    match1 = int(l.split(" ")[-1])
+                if "The number of matched residues" in ll:
+                    match2 = int(ll.split(" ")[-1])
+                if "RMSD" in l:
+                    rmsd1 = float(l.split(" ")[-1])
+                if "RMSD" in ll:
+                    rmsd2 = float(ll.split(" ")[-1])
+                if "Structure Overlap" in l:
+                    strover1 = float(l.split(" ")[-1])
+                if "Structure Overlap" in ll:
+                    strover2 = float(ll.split(" ")[-1])
 
-            for i in lines:
-                if i[:10] == 'The number':
-                    if i.split('=')[-1].strip() == '0':
-                        rmsd = " NA "
-                    else:
-                        for j in lines:
-                            if j[:4] == "RMSD":
-                                rmsd = j.split('=')[-1].strip()
 
+            if rmsd1 < rmsd2 and match2 <= match1:
+                rmsd = rmsd1
+                print mobile.name + "/" + target.name
+                print "RMSD: " + str(rmsd) + " (Matches: " + str(match1) + " , Structural Overlap: " + str(strover1) +")"
+                results.append((mobile.name, target.name, rmsd1, match1, strover1))
+            else:
+                rmsd = rmsd2
+                print target.name + "/" + mobile.name
+                print "RMSD: " + str(rmsd) + " (Matches: " + str(match2) + " , Structural Overlap: " + str(strover2) +")"
+                results.append((mobile.name, target.name, rmsd2, match2, strover2))
 
-
-            results.append((mobile.name, target.name, rmsd))
             sys.stdout.flush()
-
-            # ~ rmsd = leer("%s%sMod-%sMod.pdb.1.clique"%(mobile["path"], mobile["name"],target["name"]))
-            # ~ results.append((mobile["name"],target["name"],rmsd))
 
 
             # Remember that -s flag means runs click with -s flag. With that click doesn't create transformed pdbs
@@ -403,56 +403,18 @@ def click(superposition_list, inputs):
                 # merging click PDB files outputs
                 mergeRotatedMobileWithTarget(inputs, mobile, target)
 
-                # modify the resulting PDB file to IUPAC normal nomenclature
-                # merged_pdb_full = "%s%s_%s_Merged.pdb" % (mobile.path, mobile.name, target.name)
-                # merged_pdb_name = "%s_%s_Merged" % (mobile.name, target.name)
 
-                # ######################################################
-                # Esta parte es la que reescribe mal los PDB!!!!!!!!!!!!!!
-                # ######################################################3
-                # try:
-                #     modifyPDBAtoms(flags, None, d_table_inverse, d_pdbResnumTable, merged_pdb_full, merged_pdb_name,
-                #                    clickOutput=True)
-                # except:
-                #     pass
-
-
-            # else:
-            #     pdb1 = mobile.name
-            #     pdb2 = target.name
-            #     if not check(mobile.pdb):
-            #         pdb1 = "(%s)" % mobile.name
-            #     if not check(target.pdb):
-            #         pdb2 = "(%s)" % target.name
-            #
-            #     results.append((pdb1, pdb2, " NA "))
-
-
-
-
-
-
-            # deleting all temp files created
-            # deleteModifiedFiles(inputs, mobile, target)
-
-
-        # eliminamos los archivos .clique creados
-        # ~ if not '-m' in flags:
-        # ~ proc = subprocess.Popen(["rm -f %s/%s-%s.pdb.1.clique"%\
-        # ~ (mobile["path"], mobile["name"],target["name"])],stdout=subprocess.PIPE ,shell = True,close_fds=True)
-        # ~ l2 = proc.communicate()
-        # ~ fbasura.close()
-    else:
-        if itsOk1:
-            name1 = mobile.name
         else:
-            name1 = "(%s)"%mobile.name
+            if itsOk1:
+                name1 = mobile.name
+            else:
+                name1 = "(%s)"%mobile.name
 
-        if itsOk2:
-            name2 = target.name
-        else:
-            name2 = "(%s)"%target.name
-        results.append((name1, name2, '----'))
+            if itsOk2:
+                name2 = target.name
+            else:
+                name2 = "(%s)"%target.name
+            results.append((name1, name2, '----'))
     return results
 
 
@@ -474,10 +436,12 @@ def divide_lists(superposition_list, parts):
 def write_results(results, f_out):
     localtime = time.asctime(time.localtime(time.time()))
     f_out.write("End time :\t%s\n" % localtime)
-    f_out.write("\n%s%s%s\n" % ("PDB1".ljust(30), "PDB2".ljust(30), "RMSD".rjust(10)))
+    f_out.write("\n%s%s%s%s\n" % ("PDB1".ljust(40), "PDB2".ljust(40), "RMSD".rjust(10), "  MatchRes/StrOverlap".rjust(10)))
     f_out.write("-" * 70 + "\n")
     for i in results:
         pdb1 = i[0]
         pdb2 = i[1]
-        rmsd = i[2]
-        f_out.write("%s%s%s\n" % (pdb1.ljust(30), pdb2.ljust(30), rmsd.rjust(10)))
+        rmsd = str(i[2])
+        match = str(i[3])
+        strover = str(i[4])
+        f_out.write(pdb1+"\t"+pdb2+"\t"+rmsd+"\t"+match+"\t"+strover+"\n")

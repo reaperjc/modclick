@@ -259,13 +259,6 @@ class Inputs:
             f.write(i)
         f.close()
 
-    def __checkParametersInp(self):
-        # if -i flag is used, we change parameters.inp for the new parameters file
-        if self.i:
-            self.replaceParametersInp(self.parameters)
-        else:
-            # Changing Parameters.inp file according the table
-            self.__modifyParametersInp()
 
     def replaceParametersInp(self, restore=False):
         '''Realize a backup of Parameters.inp file, replace it with a new
@@ -297,3 +290,13 @@ class Inputs:
                 pass
             # proc = subprocess.Popen(["rm -f Parameters.inp.backup"], stdout=subprocess.PIPE, shell=True)
             # l2 = proc.communicate()
+
+
+    def __checkParametersInp(self):
+        # if -i flag is used, we change parameters.inp for the new parameters file
+        if self.i:
+            self.replaceParametersInp(self.parameters)
+        else:
+            # Changing Parameters.inp file according the table
+            self.__modifyParametersInp()
+

@@ -1,0 +1,44 @@
+The number of matched atoms = 37
+RMSD = 0.45
+Structure Overlap = 100.00
+Number of " AC2 , AC4 , AC5 , AC6 , AC8 , AN1 , AN3 , AN6 , AN7 , AN9 , CC2 , CC4 , CC5 , CC6 , CN1 , CN3 , CN4 , CO2 , GC2 , GC4 , GC5 , GC6 , GC8 , GN1 , GN2 , GN3 , GN7 , GN9 , GO6 , TC2 , TC4 , TC5 , TC6 , TC7 , TN1 , TN3 , TO2 , TO4 " atoms of 1BL0-ok_CB_0427_0428_GA-TCMod and 1BL0_fiber-ok_AB_0001_0002_GA-TCMod = 38 and 37
+MATCHED ATOM PAIRS BETWEEN:
+1BL0-ok_CB_0427_0428_GA-TCMod                    1BL0_fiber-ok_AB_0001_0002_GA-TCMod
+Chain   ResNum         AA         Atom        Chain     ResNum         AA         Atom
+C        427           G           GN1          A          1           G           GN1
+C        427           G           GC2          A          1           G           GC2
+C        427           G           GN2          A          1           G           GN2
+C        427           G           GN3          A          1           G           GN3
+C        427           G           GC4          A          1           G           GC4
+C        427           G           GC5          A          1           G           GC5
+C        427           G           GC6          A          1           G           GC6
+C        427           G           GO6          A          1           G           GO6
+C        427           G           GN7          A          1           G           GN7
+C        427           G           GC8          A          1           G           GC8
+C        427           G           GN9          A          1           G           GN9
+C        428           A           AN1          A          2           A           AN1
+C        428           A           AC2          A          2           A           AC2
+C        428           A           AN3          A          2           A           AN3
+C        428           A           AC4          A          2           A           AC4
+C        428           A           AC5          A          2           A           AC5
+C        428           A           AC6          A          2           A           AC6
+C        428           A           AN6          A          2           A           AN6
+C        428           A           AN7          A          2           A           AN7
+C        428           A           AC8          A          2           A           AC8
+C        428           A           AN9          A          2           A           AN9
+B        424           C           CN1          B         44           C           CN1
+B        424           C           CC2          B         44           C           CC2
+B        424           C           CO2          B         44           C           CO2
+B        424           C           CN3          B         44           C           CN3
+B        424           C           CC4          B         44           C           CC4
+B        424           C           CN4          B         44           C           CN4
+B        424           C           CC5          B         44           C           CC5
+B        424           C           CC6          B         44           C           CC6
+B        423           T           TN1          B         43           T           TN1
+B        423           T           TC2          B         43           T           TC2
+B        423           T           TO2          B         43           T           TO2
+B        423           T           TN3          B         43           T           TN3
+B        423           T           TC4          B         43           T           TC4
+B        423           T           TO4          B         43           T           TO4
+B        423           T           TC5          B         43           T           TC5
+B        423           T           TC6          B         43           T           TC6
